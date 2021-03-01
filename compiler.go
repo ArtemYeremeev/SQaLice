@@ -1,10 +1,15 @@
-package compiler
+package main
 
 import (
-	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 )
+
+var operatorBindings = map[string]string{
+	"==": "=",  // EQUALS
+	"!=": "!=", // NOT EQUALS
+}
 
 // Compile assembles a query string to PG database
 func Compile(target string, params string) (string, error) {
@@ -89,9 +94,55 @@ func combineConditions(conds string) (string, error) {
 	var preparedConditions []string
 	condsArray := strings.Split(conds, "&")
 	for _, cond := range condsArray {
-		if !strings.Contains(cond, "=") {
+		var sep string
+		if strings.Contains(cond, "==") { // "equals condition"
+			sep = "=="
+		}
+		if strings.Contains(cond, "!=") { // "not equals condition"
+			sep = "!="
+		}
+		if sep == "" {
 			return "", newError("Unsupported operator in condition")
 		}
+
+		field := strings.Split(cond, sep)[0]
+		value := strings.Split(cond, sep)[1]
+
+		var valueType string
+		_, err := strconv.ParseBool(value) // handle boolean type
+		if err == nil {
+			valueType = "BOOL"
+		}
+		if valueType == "" {
+			_, err = strconv.Atoi(value) // handle integer type
+			if err == nil {
+				valueType = "INT"
+			}
+		}
+		var arrValue string
+		if valueType == "" && strings.Contains(value, ";") { // handle array type
+			arrValues := strings.Split(value, ";")
+			for _, v := range arrValues {
+				_, err := strconv.ParseBool(v)
+				if err == nil {
+					continue
+				}
+				_, err = strconv.Atoi(v)
+				if err == nil {
+					continue
+				}
+				arrValue = arrValue + AddPGQuotes(v) + ","
+			}
+			valueType = "ARRAY"
+		}
+
+		if valueType == "" { // handle string type
+			cond = field + operatorBindings[sep] + AddPGQuotes(value)
+		}
+		if valueType == "ARRAY" {
+			cond = field + " " + operatorBindings[sep] + " any(array[" + strings.TrimRight(arrValue, ",") + "])"
+		}
+
 		preparedConditions = append(preparedConditions, cond)
 	}
 
@@ -149,10 +200,6 @@ func combineRestrictions(rests string) (string, error) {
 	return restsBlock, nil
 }
 
-func newError(errText string) error {
-	if errText == "" {
-		errText = "Unexpected error"
-	}
-
-	return errors.New("[SQaLice] " + errText)
+func main() {
+	fmt.Println(Compile("v_lot", "ID, Mashinu, kvartiru, geechka?pidor!=1&geechec==pes?10;15;asc"))
 }
