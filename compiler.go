@@ -1,7 +1,6 @@
-package main
+package compiler
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 )
@@ -198,8 +197,4 @@ func combineRestrictions(rests string) (string, error) {
 	}
 
 	return restsBlock, nil
-}
-
-func main() {
-	fmt.Println(Compile("v_lot", "ID, Mashinu, kvartiru, geechka?pidor!=1&geechec==pes?10;15;asc"))
 }
