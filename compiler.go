@@ -10,34 +10,34 @@ var operatorBindings = map[string]string{
 	"!=": "!=", // NOT EQUALS
 }
 
-// Compile assembles a query string to PG database
-func Compile(target string, params string) (string, error) {
+// Compile assembles a query strings to PG database for main query and count query
+func Compile(target string, params string, withCount bool) (string, string, error) {
 	if params == "" {
-		return "", newError("Request parameters not passed")
+		return "", "", newError("Request parameters not passed")
 	}
 	if target == "" {
-		return "", newError("Request target not passed")
+		return "", "", newError("Request target not passed")
 	}
 
 	queryBlocks := strings.Split(params, "?")
 	selectBlock, err := combineFields(queryBlocks[0])
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	fromBlock, err := combineTarget(target)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	whereBlock, err := combineConditions(queryBlocks[1])
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	limitsBlock, err := combineRestrictions(queryBlocks[2])
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	var respArray []string
@@ -50,7 +50,12 @@ func Compile(target string, params string) (string, error) {
 		respArray = append(respArray, strings.TrimSpace(block))
 	}
 
-	return strings.Join(respArray, " "), nil
+	var countQuery string
+	if withCount {
+		countQuery = compileCountQuery(queryArray)
+	}
+
+	return strings.Join(respArray, " "), countQuery, nil
 }
 
 // combineSelect assembles SELECT query block
@@ -94,10 +99,10 @@ func combineConditions(conds string) (string, error) {
 	condsArray := strings.Split(conds, "&")
 	for _, cond := range condsArray {
 		var sep string
-		if strings.Contains(cond, "==") { // "equals condition"
+		if strings.Contains(cond, "==") { // "EQUALS" condition
 			sep = "=="
 		}
-		if strings.Contains(cond, "!=") { // "not equals condition"
+		if strings.Contains(cond, "!=") { // "NOT EQUALS" condition
 			sep = "!="
 		}
 		if sep == "" {
@@ -108,12 +113,11 @@ func combineConditions(conds string) (string, error) {
 		value := strings.Split(cond, sep)[1]
 
 		var valueType string
-		_, err := strconv.ParseBool(value) // handle boolean type
-		if err == nil {
+		if value == "false" || value == "true" { // handle boolean type
 			valueType = "BOOL"
 		}
 		if valueType == "" {
-			_, err = strconv.Atoi(value) // handle integer type
+			_, err := strconv.Atoi(value) // handle integer type
 			if err == nil {
 				valueType = "INT"
 			}
@@ -135,11 +139,13 @@ func combineConditions(conds string) (string, error) {
 			valueType = "ARRAY"
 		}
 
-		if valueType == "" { // handle string type
+		switch valueType {
+		case "": // default string format
 			cond = field + operatorBindings[sep] + AddPGQuotes(value)
-		}
-		if valueType == "ARRAY" {
+		case "ARRAY": // array format
 			cond = field + " " + operatorBindings[sep] + " any(array[" + strings.TrimRight(arrValue, ",") + "])"
+		default: // others
+			cond = field + operatorBindings[sep] + value
 		}
 
 		preparedConditions = append(preparedConditions, cond)
@@ -153,7 +159,7 @@ func combineRestrictions(rests string) (string, error) {
 	if rests == "" {
 		return "", nil
 	}
-	restsArray := strings.Split(rests, ";")
+	restsArray := strings.Split(rests, ",")
 	restsBlock := ""
 
 	// order
@@ -197,4 +203,9 @@ func combineRestrictions(rests string) (string, error) {
 	}
 
 	return restsBlock, nil
+}
+
+// compileCountQuery assembles a query to get count of results using FROM and WHERE blocks
+func compileCountQuery(queryArray []string) string {
+	return strings.Join([]string{"select count(*)", queryArray[1], queryArray[2]}, " ")
 }
