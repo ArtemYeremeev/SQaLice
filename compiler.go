@@ -1,4 +1,4 @@
-package compiler
+package compile
 
 import (
 	"strconv"
@@ -35,7 +35,7 @@ func Compile(target string, params string, withCount bool) (string, string, erro
 		return "", "", err
 	}
 
-	limitsBlock, limit, err := combineRestrictions(queryBlocks[2])
+	limitsBlock, err := combineRestrictions(queryBlocks[2])
 	if err != nil {
 		return "", "", err
 	}
@@ -51,11 +51,12 @@ func Compile(target string, params string, withCount bool) (string, string, erro
 	}
 
 	var countQuery string
-	if withCount {
-		countQuery = compileCountQuery(queryArray, limit)
+	mainQuery := strings.Join(respArray, " ")
+	if withCount { // compile query to get count of result rows
+		countQuery = "select count(*) from (" + mainQuery + ") q"
 	}
 
-	return strings.Join(respArray, " "), countQuery, nil
+	return mainQuery, countQuery, nil
 }
 
 // combineSelect assembles SELECT query block
@@ -155,9 +156,9 @@ func combineConditions(conds string) (string, error) {
 }
 
 // combineRestrictions assembles selection parameters
-func combineRestrictions(rests string) (restBlock string, countLimit string, err error) {
+func combineRestrictions(rests string) (string, error) {
 	if rests == "" {
-		return "", "", nil
+		return "", nil
 	}
 	restsArray := strings.Split(rests, ",")
 	restsBlock := ""
@@ -166,7 +167,7 @@ func combineRestrictions(rests string) (restBlock string, countLimit string, err
 	order := restsArray[2]
 	if order != "" {
 		if order != "asc" && order != "desc" {
-			return "", "", newError("Unexpected selection order - " + order)
+			return "", newError("Unexpected selection order - " + order)
 		}
 
 		restsBlock = "order by q.ID " + order
@@ -177,7 +178,7 @@ func combineRestrictions(rests string) (restBlock string, countLimit string, err
 	if limit != "" {
 		_, err := strconv.Atoi(limit)
 		if err != nil {
-			return "", "", newError("Unexpected selection limit - " + limit)
+			return "", newError("Unexpected selection limit - " + limit)
 		}
 
 		if restsBlock == "" {
@@ -192,7 +193,7 @@ func combineRestrictions(rests string) (restBlock string, countLimit string, err
 	if offset != "" {
 		_, err := strconv.Atoi(offset)
 		if err != nil {
-			return "", "", newError("Unexpected selection offset - " + offset)
+			return "", newError("Unexpected selection offset - " + offset)
 		}
 
 		if restsBlock == "" {
@@ -202,10 +203,5 @@ func combineRestrictions(rests string) (restBlock string, countLimit string, err
 		}
 	}
 
-	return restsBlock, limit, nil
-}
-
-// compileCountQuery assembles a query to get count of results using FROM, WHERE blocks and limit
-func compileCountQuery(queryArray []string, limit string) string {
-	return strings.Join([]string{"select count(*)", queryArray[1], queryArray[2], "limit", limit}, " ")
+	return restsBlock, nil
 }
