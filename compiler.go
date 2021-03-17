@@ -205,7 +205,7 @@ func combineRestrictions(rests string) (string, error) {
 	return restsBlock, nil
 }
 
-// compileCountQuery assembles a query to get count of results using FROM and WHERE blocks
+// compileCountQuery assembles a query to get count of results using FROM, WHERE, LIMIT blocks
 func compileCountQuery(queryArray []string) string {
-	return strings.Join([]string{"select count(*)", queryArray[1], queryArray[2]}, " ")
+	return strings.Join([]string{"select count(*)", queryArray[1], queryArray[2], queryArray[3]}, " ")
 }
