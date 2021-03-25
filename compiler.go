@@ -11,7 +11,7 @@ var operatorBindings = map[string]string{
 }
 
 // Compile assembles a query strings to PG database for main query and count query
-func Compile(target string, params string, withCount bool) (string, string, error) {
+func Compile(modelsMap map[string]map[string]string, target string, params string, withCount bool) (string, string, error) {
 	if params == "" {
 		return "", "", newError("Request parameters not passed")
 	}
@@ -20,7 +20,7 @@ func Compile(target string, params string, withCount bool) (string, string, erro
 	}
 
 	queryBlocks := strings.Split(params, "?")
-	selectBlock, err := combineFields(queryBlocks[0])
+	selectBlock, err := combineFields(modelsMap[target], queryBlocks[0])
 	if err != nil {
 		return "", "", err
 	}
@@ -30,7 +30,7 @@ func Compile(target string, params string, withCount bool) (string, string, erro
 		return "", "", err
 	}
 
-	whereBlock, err := combineConditions(queryBlocks[1])
+	whereBlock, err := combineConditions(modelsMap[target], queryBlocks[1])
 	if err != nil {
 		return "", "", err
 	}
@@ -60,7 +60,7 @@ func Compile(target string, params string, withCount bool) (string, string, erro
 }
 
 // combineSelect assembles SELECT query block
-func combineFields(fields string) (string, error) {
+func combineFields(fieldsMap map[string]string, fields string) (string, error) {
 	selectBlock := "select "
 
 	if fields == "" {
@@ -69,8 +69,13 @@ func combineFields(fields string) (string, error) {
 		var preparedFields []string
 
 		fields := strings.Split(fields, ",")
-		for _, field := range fields {
-			preparedField := "q." + strings.TrimSpace(field)
+		for _, f := range fields {
+			field := fieldsMap[strings.TrimSpace(f)]
+			if field == "" {
+				return "", newError("Passed unexpected field name in select - " + f)
+			}
+
+			preparedField := "q." + field
 			preparedFields = append(preparedFields, preparedField)
 		}
 
@@ -90,7 +95,7 @@ func combineTarget(target string) (string, error) {
 }
 
 // combineConditions assembles WHERE query block
-func combineConditions(conds string) (string, error) {
+func combineConditions(fieldsMap map[string]string, conds string) (string, error) {
 	if conds == "" {
 		return "", nil
 	}
@@ -110,8 +115,13 @@ func combineConditions(conds string) (string, error) {
 			return "", newError("Unsupported operator in condition")
 		}
 
-		field := strings.Split(cond, sep)[0]
+		f := strings.Split(cond, sep)[0]
 		value := strings.Split(cond, sep)[1]
+
+		field := fieldsMap[f]
+		if field == "" {
+			return "", newError("Passed unexpected field name in condition - " + f)
+		}
 
 		var valueType string
 		if value == "false" || value == "true" { // handle boolean type
