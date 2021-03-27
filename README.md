@@ -1,5 +1,7 @@
 # SQaLice
 
+<a href="https://ibb.co/4YJPnGn"><img src="https://i.ibb.co/4YJPnGn/SQa-Lice-logo.png" alt="SQa-Lice-logo" border="0"></a>
+
 ## Содержание
 
 - [Содержание](#содержание)
