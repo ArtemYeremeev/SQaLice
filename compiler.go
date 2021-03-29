@@ -127,7 +127,8 @@ func combineConditions(fieldsMap map[string]string, conds string) (string, error
 		var err error
 
 		var bracketConditions []string
-		for i := 0; i == strings.Count(condSet, "*")+strings.Count(condSet, "||"); i++ { // loop number of logical operators in condition set
+		opCount := strings.Count(condSet, "*") + strings.Count(condSet, "||")
+		for i := 0; i <= opCount; i++ { // loop number of logical operators in condition set
 			condSet, cond, err = handleConditionsSet(fieldsMap, condSet)
 			if err != nil {
 				return "", err
@@ -151,13 +152,14 @@ func combineConditions(fieldsMap map[string]string, conds string) (string, error
 			conds = strings.TrimPrefix(conds, op)
 		}
 
-		preparedConditions = append(preparedConditions, "("+strings.Join(bracketConditions, " ")+") "+logicalBindings[op]+" ")
+		preparedConditions = append(preparedConditions, "("+strings.Join(bracketConditions, " ")+") "+logicalBindings[op])
 	}
 
 	var cond string
 	var err error
+	opCount := strings.Count(conds, "*") + strings.Count(conds, "||")
 	if conds != "" { // handle non-bracket conditions set
-		for i := 0; i == strings.Count(conds, "*")+strings.Count(conds, "||"); i++ { // loop number of logical operators in condition set
+		for i := 0; i <= opCount; i++ { // loop number of logical operators in condition set
 			conds, cond, err = handleConditionsSet(fieldsMap, conds)
 			if err != nil {
 				return "", err
@@ -265,9 +267,13 @@ func handleConditionsSet(fieldsMap map[string]string, condSet string) (string, s
 
 func formCondition(fieldsMap map[string]string, cond string, logicalOperator string) (string, error) {
 	var sep string
-	for queryOp := range operatorBindings { // Check is condition correct
+	for queryOp := range operatorBindings { // Check is condition legal
 		if strings.Contains(cond, queryOp) {
 			sep = queryOp
+		}
+		if strings.Contains(cond, queryOp+"=") {
+			sep = queryOp + "="
+			break
 		}
 	}
 
@@ -323,8 +329,8 @@ func formCondition(fieldsMap map[string]string, cond string, logicalOperator str
 	}
 
 	if logicalOperator != "" {
-		return cond + " " + logicalBindings[logicalOperator], nil
+		return "q." + cond + " " + logicalBindings[logicalOperator], nil
 	}
 
-	return cond, nil
+	return "q." + cond, nil
 }
