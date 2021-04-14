@@ -63,7 +63,7 @@ func Compile(modelsMap map[string]map[string]string, target string, params strin
 	var countQuery string
 	mainQuery := strings.Join(respArray, " ")
 	if withCount { // compile query to get count of result rows
-		countQuery = "select count(*) from (" + mainQuery + ") q"
+		countQuery = "select count(*) from (" + strings.Join([]string{selectBlock, fromBlock, whereBlock}, " ") + ") q"
 	}
 
 	return mainQuery, countQuery, nil
