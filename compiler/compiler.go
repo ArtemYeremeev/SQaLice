@@ -1,4 +1,4 @@
-package compiler
+package sqalice
 
 import (
 	"regexp"
