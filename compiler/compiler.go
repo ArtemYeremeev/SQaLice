@@ -314,14 +314,14 @@ func formCondition(fieldsMap map[string]string, cond string, logicalOperator str
 				arrValue = arrValue + v + ","
 				continue
 			}
-			arrValue = arrValue + AddPGQuotes(v) + ","
+			arrValue = arrValue + addPGQuotes(v) + ","
 		}
 		valueType = "ARRAY"
 	}
 
 	switch valueType {
 	case "": // default string format
-		cond = field + operatorBindings[sep] + AddPGQuotes(value)
+		cond = field + operatorBindings[sep] + addPGQuotes(value)
 	case "ARRAY": // array format
 		cond = field + " " + operatorBindings[sep] + " any(array[" + strings.TrimRight(arrValue, ",") + "])"
 	default: // others

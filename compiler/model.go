@@ -3,6 +3,7 @@ package compiler
 import (
 	"reflect"
 	"strings"
+	"errors"
 )
 
 // FormDinamicModel forms a model containing fields for building query
@@ -16,3 +17,16 @@ func FormDinamicModel(model reflect.Value) map[string]string {
 
 	return fieldsMap
 }
+
+func addPGQuotes(str string) string {
+	return "'" + str + "'"
+}
+
+func newError(errText string) error {
+	if errText == "" {
+		errText = "Unexpected error"
+	}
+
+	return errors.New("[SQaLice] " + errText)
+}
+
